@@ -31,10 +31,9 @@ class NumberButton extends Component {
 class OperationButton extends Component {
 	_handlePress() {
 		if (this.props.onPress) {
-			this.props.onPress(this.props.op, this.props.symbol);
+			this.props.onPress(this.props.symbol);
 		}
 	}
-
 
 	render() {
 		return (
@@ -50,15 +49,27 @@ class OperationButton extends Component {
 
 function updateState(target, prop, value) {
 	let res = Object.assign({}, target.state);
-	res[prop] = value;
+	if (arguments.length < 3) {
+		prop(res);
+	} else {
+		res[prop] = value;
+	}
 	return target.setState(res);
 }
+
+var ops = {
+	'+': (prev, value) => Number(prev) + Number(value),
+	'-': (prev, value) => Number(prev) + Number(value),
+	'*': (prev, value) => Number(prev) + Number(value),
+	'/': (prev, value) => Number(prev) + Number(value)
+};
 
 class Calc extends Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			value: '0',
+			prev: null,
+			value: null,
 			op: null
 		};
 	}
@@ -66,29 +77,53 @@ class Calc extends Component {
 	onNumber(number) {
 		let val = this.state.value;
 		if (number === '.') {
-			if (val.indexOf('.') < 0) {
+			if (val === null) {
+				val = '0.';
+			}
+			else if (val.indexOf('.') < 0) {
 				val += '.';
 			}
 		}
-		else if (val === '0') {
-			val = String(number);
-		}
-		else {
-			val += number;
+		else if (val !== null || number != 0) {
+			val = (val || '') + String(number);
 		}
 		updateState(this, 'value', val);
 	}
 
 	onOp(symbol) {
+		if (this.state.value === null) {
+			return;
+		}
+		if (this.state.op && this.state.prev !== null) {
+			this.evaluate();
+		} else {
+			updateState(this, s => {
+				s.prev = s.value;
+				s.value = null;
+			});
+		}
 		updateState(this, 'op', symbol);
 	}
 
+	evaluate() {
+		let res = ops[this.state.op](this.state.prev, this.state.value);
+		updateState(this, s => {
+			s.prev = null;
+			s.value = res;
+			s.op = null;
+		});
+	}
+
 	render() {
+		let display = this.state.value || this.state.prev || '0';
 		let onNumber = this.onNumber.bind(this);
 		let onOp = this.onOp.bind(this);
 		return (
 			<View style={styles.container}>
-				<Text style={styles.display}>{this.state.value}</Text>
+				<View style={{flexDirection: 'row', alignItems: 'stretch', margin: 10}}>
+					<Text style={[styles.display, {flex: 1}]}>{display}</Text>
+					<Text style={[styles.display, {minWidth: 50}]}>{this.state.op}</Text>
+				</View>
 				<View style={{flex: 1, alignItems: 'stretch'}}>
 					<View style={styles.buttonRow}>
 						<NumberButton number="1" onPress={onNumber}/>
@@ -125,11 +160,10 @@ const styles = StyleSheet.create({
 		backgroundColor: '#333',
 	},
 	display: {
-		fontSize: 20,
+		fontSize: 25,
 		textAlign: 'center',
 		textAlignVertical: 'center',
 		backgroundColor: '#8e8',
-		margin: 10,
 		padding: 10
 	},
 	buttonRow: {
