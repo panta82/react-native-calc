@@ -9,26 +9,7 @@ import {
 
 import Button from 'react-native-button';
 
-class NumberButton extends Component {
-	_handlePress() {
-		if (this.props.onPress) {
-			this.props.onPress(this.props.number);
-		}
-	}
-
-	render() {
-		return (
-			<Button
-				containerStyle={{flex: 1, padding: 10, margin: 10, borderRadius: 4, justifyContent: 'space-around', backgroundColor: '#ccc'}}
-				style={{fontSize: 20, color: 'black'}}
-				onPress={() => this._handlePress()}>
-				{this.props.number}
-			</Button>
-		);
-	}
-}
-
-class OperationButton extends Component {
+class CalcButton extends Component {
 	_handlePress() {
 		if (this.props.onPress) {
 			this.props.onPress(this.props.symbol);
@@ -36,42 +17,73 @@ class OperationButton extends Component {
 	}
 
 	render() {
+		let flex = this.props.flex !== undefined ? this.props.flex : 1;
 		return (
-			<Button
-				containerStyle={{flex: 1, padding: 10, margin: 10, borderRadius: 4, justifyContent: 'space-around', backgroundColor: '#f00'}}
-				style={{fontSize: 25, color: 'white'}}
-				onPress={() => this._handlePress()}>
-				{this.props.symbol}
-			</Button>
+			<View style={{flex: flex}}>
+				<Button
+					containerStyle={[
+						{
+							flex: 1,
+							margin: 10,
+							borderRadius: 4,
+							justifyContent: 'space-around',
+							backgroundColor: this.props.bg
+						},
+						this.props.containerStyle
+					]}
+					style={[
+						{fontSize: 20, color: this.props.fg},
+						this.props.style
+					]}
+					onPress={() => this._handlePress()}>
+					{this.props.symbol}
+				</Button>
+			</View>
 		);
 	}
 }
 
-function updateState(target, prop, value) {
-	let res = Object.assign({}, target.state);
-	if (arguments.length < 3) {
-		prop(res);
-	} else {
-		res[prop] = value;
+class GrayButton extends Component {
+	render() {
+		return <CalcButton {...this.props} fg="black" bg="#ccc" />;
 	}
-	return target.setState(res);
+}
+
+class BlueButton extends Component {
+	render() {
+		return <CalcButton {...this.props} fg="black" bg="#bad8d9"/>;
+	}
+}
+
+class RedButton extends Component {
+	render() {
+		return <CalcButton {...this.props} fg="white" bg="#f00" />;
+	}
 }
 
 var ops = {
 	'+': (prev, value) => Number(prev) + Number(value),
-	'-': (prev, value) => Number(prev) + Number(value),
-	'*': (prev, value) => Number(prev) + Number(value),
-	'/': (prev, value) => Number(prev) + Number(value)
+	'-': (prev, value) => Number(prev) - Number(value),
+	'*': (prev, value) => Number(prev) * Number(value),
+	'/': (prev, value) => Number(prev) / Number(value)
 };
+
+function initialState() {
+	return {
+		prev: null,
+		value: null,
+		op: null
+	};
+}
 
 class Calc extends Component {
 	constructor(props) {
 		super(props);
-		this.state = {
-			prev: null,
-			value: null,
-			op: null
-		};
+		this.state = initialState();
+	}
+
+	reset() {
+		this.setState(initialState());
 	}
 
 	onNumber(number) {
@@ -87,37 +99,61 @@ class Calc extends Component {
 		else if (val !== null || number != 0) {
 			val = (val || '') + String(number);
 		}
-		updateState(this, 'value', val);
+		this.setState({
+			value: val
+		});
+	}
+
+	canEvaluate() {
+		return this.state.op && this.state.prev !== null;
+	}
+
+	doEvaluate() {
+		return ops[this.state.op](this.state.prev, this.state.value)
 	}
 
 	onOp(symbol) {
-		if (this.state.value === null) {
+		if (this.state.value === null && this.state.prev === null) {
 			return;
 		}
-		if (this.state.op && this.state.prev !== null) {
-			this.evaluate();
-		} else {
-			updateState(this, s => {
-				s.prev = s.value;
-				s.value = null;
-			});
+		var s = {
+			op: symbol
+		};
+		if (this.canEvaluate()) {
+			s.prev = this.doEvaluate();
 		}
-		updateState(this, 'op', symbol);
+		else if (this.state.value !== null) {
+			s.prev = this.state.value;
+		}
+		s.value = null;
+		this.setState(s);
 	}
 
-	evaluate() {
-		let res = ops[this.state.op](this.state.prev, this.state.value);
-		updateState(this, s => {
-			s.prev = null;
-			s.value = res;
-			s.op = null;
-		});
+	onEvaluate() {
+		if (this.canEvaluate()) {
+			this.setState({
+				prev: this.doEvaluate(),
+				value: null,
+				op: null
+			});
+		}
+	}
+
+	onSign() {
+		if (this.state.value !== null) {
+			this.setState({
+				value: Number(this.state.value) * -1
+			});
+		}
 	}
 
 	render() {
 		let display = this.state.value || this.state.prev || '0';
 		let onNumber = this.onNumber.bind(this);
+		let onReset = this.reset.bind(this);
+		let onEvaluate = this.onEvaluate.bind(this);
 		let onOp = this.onOp.bind(this);
+		let onSign = this.onSign.bind(this);
 		return (
 			<View style={styles.container}>
 				<View style={{flexDirection: 'row', alignItems: 'stretch', margin: 10}}>
@@ -126,24 +162,32 @@ class Calc extends Component {
 				</View>
 				<View style={{flex: 1, alignItems: 'stretch'}}>
 					<View style={styles.buttonRow}>
-						<NumberButton number="1" onPress={onNumber}/>
-						<NumberButton number="2" onPress={onNumber}/>
-						<NumberButton number="3" onPress={onNumber}/>
-						<OperationButton symbol="+" onPress={onOp}/>
+						<RedButton symbol="C" onPress={onReset} flex={3}/>
+						<BlueButton symbol="+" onPress={onOp}/>
 					</View>
 					<View style={styles.buttonRow}>
-						<NumberButton number="4" onPress={onNumber}/>
-						<NumberButton number="5" onPress={onNumber}/>
-						<NumberButton number="6" onPress={onNumber}/>
+						<GrayButton symbol="1" onPress={onNumber}/>
+						<GrayButton symbol="2" onPress={onNumber}/>
+						<GrayButton symbol="3" onPress={onNumber}/>
+						<BlueButton symbol="-" onPress={onOp}/>
 					</View>
 					<View style={styles.buttonRow}>
-						<NumberButton number="7" onPress={onNumber}/>
-						<NumberButton number="8" onPress={onNumber}/>
-						<NumberButton number="9" onPress={onNumber}/>
+						<GrayButton symbol="4" onPress={onNumber}/>
+						<GrayButton symbol="5" onPress={onNumber}/>
+						<GrayButton symbol="6" onPress={onNumber}/>
+						<BlueButton symbol="*" onPress={onOp}/>
 					</View>
 					<View style={styles.buttonRow}>
-						<NumberButton number="0" onPress={onNumber}/>
-						<NumberButton number="." onPress={onNumber}/>
+						<GrayButton symbol="7" onPress={onNumber}/>
+						<GrayButton symbol="8" onPress={onNumber}/>
+						<GrayButton symbol="9" onPress={onNumber}/>
+						<BlueButton symbol="/" onPress={onOp}/>
+					</View>
+					<View style={styles.buttonRow}>
+						<GrayButton symbol="+/-" onPress={onSign}/>
+						<GrayButton symbol="0" onPress={onNumber}/>
+						<GrayButton symbol="." onPress={onNumber}/>
+						<RedButton symbol="=" onPress={onEvaluate}/>
 					</View>
 				</View>
 			</View>
@@ -169,7 +213,7 @@ const styles = StyleSheet.create({
 	buttonRow: {
 		flex: 1,
 		flexDirection: 'row',
-		justifyContent: 'space-around',
+		justifyContent: 'space-between',
 		alignItems: 'stretch'
 	}
 });
