@@ -3,4 +3,4 @@
 
 Nothing much to say, really. Learning...
 
-![misc/ss1.png](Screenshot)
+![Screenshot](misc/ss1.png)
