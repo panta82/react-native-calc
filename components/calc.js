@@ -3,7 +3,8 @@ import React, {Component} from 'react';
 import {
 	StyleSheet,
 	Text,
-	View
+	View,
+	Platform
 } from 'react-native';
 
 import {
@@ -153,6 +154,7 @@ const styles = StyleSheet.create({
 		alignItems: 'stretch',
 		flexDirection: 'column',
 		backgroundColor: '#333',
+		paddingTop: Platform.OS === 'ios' ? 20 : 0
 	},
 	display: {
 		fontSize: 25,
